@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import mph
 
 # Rules and conventions for ETFs
 # 's' is defined by convention as the distance from the center of the ETF to the center of the hot junction contact.
@@ -17,7 +18,7 @@ t_STI = 0.350e-6                    # As given in MUSE document
 dt_STI = 0.171*t_STI
 t_ILD = 7500e-10
 dt_ILD = 0.214*t_ILD
-t_IMDa = 11800e-10
+t_IMDa = 11800e-10                  # For IMD 1-5
 dt_IMDa = 0.2*t_IMDa
 t_IMDb = 2000e-10
 dt_IMDb = 0.03*t_IMDb
@@ -38,18 +39,42 @@ t_poly = 2000e-10
 t_20KA_UTM = 23400e-10      # Ultra thick metal metal layer without MIM cap
 t_40KA_UTM = 46000e-10      # Ultra thick metal metal layer with MIM cap
 
-def construct_heater_geometry(type, targetfile):
+def construct_heater_geometry(type):
     return None
 
-def generate_geometry(s,l_tp,ext_NW,ext_pplus,heater_type,targetfile):
-    construct_heater_geometry(heater_type, targetfile)
+def create_comsol_file(s,l_tp,ext_NW,ext_pplus,heater_type,targetfile):
+    # Initiate connection to COMSOL, and create a new file
+    client = mph.start()
+    model = client.create(targetfile)
 
+    # Create the 'paramters' section in COMSOL
+    model.parameter('f', '120[kHz]')
+    model.parameter('temp','300[K]')
+
+    # Create a component in COMSOL
+    components = model/'components'         # Shorthand notation
+    components.create(True,name='component')
+
+    # Define the geometry
+    geometries = model/'geometries'
+    geometry = geometries.create(2,name='geometry')
+    model.java.component('component').geom('geometry').axisymmetric(True)
+
+
+    construct_heater_geometry(heater_type)
+
+    # Define probe location
     r_hotj = s + viawidth/2 + contact_margin_RPO
+    r_coldj = s + l_tp - viawidth/2 - contact_margin_RPO
+
+    # build probes
+    probe_Hotj = 0
+
 
     return None
 
 def main():
-    targetfile = "heater_geometry.mph"
+    targetfile = "testfile"
     s = 24e-6
     l_tp = 24e-6
     ext_NW = 2e-6
@@ -65,8 +90,8 @@ def main():
     if ext_pplus > ext_NW - rule_NW_enclose_pplus:
         raise ValueError(f"ext_pplus must be less than ext_NW - {rule_NW_enclose_pplus} m")
 
-    generate_geometry(s, l_tp, ext_NW, ext_pplus, heater_type, targetfile)
+    create_comsol_file(s, l_tp, ext_NW, ext_pplus, heater_type, targetfile)
     return None
 
-if "__name__" == "__main__":
+if __name__ == "__main__":
     main()
